@@ -75,30 +75,21 @@ the decision engine's output.
 
 ## Data schema (Room / CSV for training)
 
-```
-message_id                              -- notification.getKey() in prod
-timestamp
-sender_id                               -- EXTRA_TITLE from the notification
-app_package                             -- Telegram/Viber/WhatsApp/SMS/Gmail/...
-content_type                            -- text/photo/video/voice/file/
-                                         -- sticker/emoji_only/reaction
-message_text                            -- empty for media with no caption
-chat_type                               -- dm/group/channel/broadcast
-time_since_last_msg_from_sender_sec
-conversation_state                      -- last_msg_was_question/
-                                         -- last_msg_was_answer/neutral
-user_reaction                           -- opened_immediately (≤300s) /
-                                         -- opened_later (300s–24h) /
-                                         -- ignored (>24h or never opened)
-time_to_open_sec
-decision                                -- sound/silent — what the engine decided
-feedback                                -- [DEV ONLY] correct/incorrect/none
-corrected_decision                      -- [DEV ONLY] if incorrect
-```
+The full column reference lives in **`docs/DATA_SCHEMA.md`**: every column's
+type, source, when it is filled, and the `removal_reason` code table. Read it
+before touching `NotificationLog` or the export, and update it in the same
+change.
+
+Key points:
+- `message_id` is the unique row id; `notification_key` is the raw
+  `sbn.key`, which is NOT unique (messengers reuse it per chat)
+- `content_type`, `chat_type`, `conversation_state`, `user_reaction`,
+  `decision` are derived later from the `raw_*` and removal columns
+- `feedback` / `corrected_decision` are DEV ONLY
 
 ## Feature engineering for the classifier
 
-Beyond the raw fields above:
+Beyond the raw fields in `docs/DATA_SCHEMA.md`:
 
 - `has_qmark` — presence of "?" in the text (weak signal in practice on
   the current test data — don't overweight it)
