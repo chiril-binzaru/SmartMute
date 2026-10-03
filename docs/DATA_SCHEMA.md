@@ -133,17 +133,18 @@ Decide how to treat 8/9 once real device data shows how often it happens.
 
 ## CSV export
 
-**Dev builds only.** A "[dev] Export CSV" button on the main screen, shown only when
-`BuildConfig.DEBUG` (`export/CsvExporter.kt`). Each tap writes a new file:
+**`dev` flavor only.** An "Export CSV" button on the main screen
+(`app/src/dev/.../export/CsvExporter.kt`); the `user` flavor doesn't contain it. Each
+tap writes a new file:
 
 ```
-/sdcard/Android/data/com.github.chirilbinzaru.smartmute/files/exports/notification_log_<yyyyMMdd_HHmmss>.csv
+/sdcard/Android/data/com.github.chirilbinzaru.smartmute.dev/files/exports/notification_log_<yyyyMMdd_HHmmss>.csv
 ```
 
 Pull every export with:
 
 ```
-adb pull /sdcard/Android/data/com.github.chirilbinzaru.smartmute/files/exports/ .
+adb pull /sdcard/Android/data/com.github.chirilbinzaru.smartmute.dev/files/exports/ .
 ```
 
 **Format.** RFC 4180:

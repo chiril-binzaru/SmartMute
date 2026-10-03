@@ -11,7 +11,7 @@ import java.util.Locale
 
 /**
  * [DEV ONLY] Dumps notification_log to CSV in the app's external files dir, for
- * `adb pull` into the Python pipeline. Callers must gate this on BuildConfig.DEBUG.
+ * `adb pull` into the Python pipeline. Lives in the dev flavor only.
  *
  * Columns are read from the table itself, so the header always matches the Room schema
  * (see docs/DATA_SCHEMA.md), plus a trailing removal_reason_name column.

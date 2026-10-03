@@ -21,6 +21,21 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // dev: log viewer, CSV export and (later) feedback buttons; installs next to the user app.
+    // user: what end users get. Dev-only code lives in src/dev and is never compiled into it.
+    flavorDimensions += "audience"
+    productFlavors {
+        create("dev") {
+            dimension = "audience"
+            isDefault = true
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
+        create("user") {
+            dimension = "audience"
+        }
+    }
+
     buildTypes {
         release {
             optimization {
@@ -34,7 +49,6 @@ android {
     }
     buildFeatures {
         compose = true
-        buildConfig = true
     }
 }
 

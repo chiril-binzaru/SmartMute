@@ -25,7 +25,8 @@ secondary feature, not core.
 ## Architectural constraint: feedback is dev-only
 
 **Feedback buttons (👍/👎 was this decision correct) exist ONLY in the
-debug/dev build, gated behind `BuildConfig.DEBUG` or a separate dev flag.**
+`dev` product flavor (`app/src/dev/`), never in the `user` flavor.** See
+"Build flavors" below.
 
 Reason: if the end user has to confirm on every notification whether the
 decision was correct, we're trading "minus one decision" for "plus one
@@ -61,6 +62,28 @@ personal-model-training stage, not for the production build.
 - **WorkManager** — background tasks (periodic retraining / weight updates)
 - **No backend for MVP** — everything runs on-device, nothing leaves the
   phone (except optionally for cold-start label generation via an LLM API)
+
+## Build flavors: `dev` and `user`
+
+One codebase, two product flavors (dimension `audience`), not two branches:
+both must run the exact same listener, feature extraction and decision code,
+or the model sees different features in production than it was trained on.
+
+- `app/src/main/` — everything shared: listener service, Room, decision
+  engine, feature engineering, notification channels
+- `app/src/dev/` — dev tools only: log viewer, CSV export, export markers,
+  (later) 👍/👎 feedback. App id suffix `.dev`, label "SmartMute Dev", so it
+  installs next to the user app
+- `app/src/user/` — the end-user screens
+
+Dev-only code goes in `src/dev/` (with a `src/user/` counterpart if `main`
+needs to call it), never behind `BuildConfig.DEBUG` checks in `main`: the
+user APK must not contain it at all. Tests for dev code go in
+`app/src/testDev/`.
+
+Only one of the two installed apps should hold notification access once
+reposting exists (step 2), or both will cancel and repost the same
+notifications.
 
 ## Notification channels (required, Android 8+)
 
