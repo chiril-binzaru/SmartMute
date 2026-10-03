@@ -70,11 +70,19 @@ both must run the exact same listener, feature extraction and decision code,
 or the model sees different features in production than it was trained on.
 
 - `app/src/main/` — everything shared: listener service, Room, decision
-  engine, feature engineering, notification channels
+  engine, feature engineering, notification channels, the On/Off setting
+  (`SmartMuteSettings`), and the log list/row UI
 - `app/src/dev/` — dev tools only: log viewer, CSV export, export markers,
   (later) 👍/👎 feedback. App id suffix `.dev`, label "SmartMute Dev", so it
   installs next to the user app
-- `app/src/user/` — the end-user screens
+- `app/src/user/` — the end-user screens: a home screen with the On/Off
+  switch, plus a read-only History screen the user opens only if they want
+  to. **No feedback controls in the user app, not even optional ones.**
+
+**On/Off:** Off means SmartMute stops changing sounds (no cancel/repost;
+notifications behave as if the app weren't installed). Logging continues
+either way. The decision/repost code (step 2) must check
+`SmartMuteSettings.isEnabled()`.
 
 Dev-only code goes in `src/dev/` (with a `src/user/` counterpart if `main`
 needs to call it), never behind `BuildConfig.DEBUG` checks in `main`: the
