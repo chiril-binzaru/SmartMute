@@ -1,7 +1,8 @@
 # Data schema
 
 Reference for the `notification_log` Room table (`data/NotificationLog.kt`) and for
-the CSV exported from it. Column names are identical in Room and in the CSV.
+the CSV exported from it. Column names are identical in Room and in the CSV; the CSV
+adds one derived column, `removal_reason_name` (see [CSV export](#csv-export)).
 
 If you change the entity, update this file in the same commit.
 
@@ -89,8 +90,9 @@ Only ever written in debug builds (see "Architectural constraint" in `CLAUDE.md`
 ## Removal reason codes
 
 Values of `removal_reason`, from `NotificationListenerService.REASON_*` in the
-android-37 SDK sources. The database stores the number; convert it to a name in the
-CSV export so new codes never require a migration.
+android-37 SDK sources. The database stores the number; the CSV export adds the
+name (without the `REASON_` prefix) as `removal_reason_name`, so new codes never require
+a migration.
 
 "Opened?" is how the value should be read for `user_reaction`.
 
@@ -128,6 +130,39 @@ from `user_reaction` labelling or treat them as unknown.
 (or on another device, e.g. Telegram Desktop) without tapping the notification. That is
 still an "opened" signal, but `time_to_open_sec` is currently only set for code 1.
 Decide how to treat 8/9 once real device data shows how often it happens.
+
+## CSV export
+
+**Dev builds only.** A "[dev] Export CSV" button on the main screen, shown only when
+`BuildConfig.DEBUG` (`export/CsvExporter.kt`). Each tap writes a new file:
+
+```
+/sdcard/Android/data/com.github.chirilbinzaru.smartmute/files/exports/notification_log_<yyyyMMdd_HHmmss>.csv
+```
+
+Pull every export with:
+
+```
+adb pull /sdcard/Android/data/com.github.chirilbinzaru.smartmute/files/exports/ .
+```
+
+**Format.** RFC 4180:
+- UTF-8, no BOM; CRLF between records
+- header row first; rows ordered by `message_id`
+- a field is wrapped in double quotes when it contains a comma, a double quote, CR or
+  LF, and inner double quotes are doubled. `message_text` can span several lines
+  inside quotes, so read it with a real CSV parser (`pandas.read_csv`, Python `csv`),
+  never by splitting lines
+- SQL `NULL` is an empty field, so null and empty string can't be told apart
+  (pandas reads both as `NaN`)
+- values are written as stored: epoch-ms times, 0/1 booleans, integer reason codes
+
+**Columns.** Every column of `notification_log`, in table order (header taken from the
+table itself, so it can't drift from the schema), followed by:
+
+| Column | Meaning |
+|---|---|
+| `removal_reason_name` | Name for `removal_reason`, e.g. `CLICK`, `CANCEL`, `APP_CANCEL`; `UNKNOWN_<n>` for codes not in the table above; empty when `removal_reason` is null. |
 
 ## Device notes
 
