@@ -6,16 +6,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -29,14 +25,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.github.chirilbinzaru.smartmute.data.AppDatabase
-import com.github.chirilbinzaru.smartmute.data.NotificationLog
 import com.github.chirilbinzaru.smartmute.export.CsvExporter
 import com.github.chirilbinzaru.smartmute.ui.ListenerAccess
+import com.github.chirilbinzaru.smartmute.settings.SmartMuteSettings
+import com.github.chirilbinzaru.smartmute.ui.LOG_LIST_LIMIT
 import com.github.chirilbinzaru.smartmute.ui.ListenerStatus
+import com.github.chirilbinzaru.smartmute.ui.LogList
+import com.github.chirilbinzaru.smartmute.ui.LogRow
+import com.github.chirilbinzaru.smartmute.ui.SmartMuteToggle
 import com.github.chirilbinzaru.smartmute.ui.theme.SmartMuteTheme
-import com.github.chirilbinzaru.smartmute.ui.verticalScrollbar
-import java.text.DateFormat
-import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,18 +42,21 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
     private val listenerEnabled = mutableStateOf(false)
     private val exportStatus = mutableStateOf<String?>(null)
-    private val exports = mutableStateOf<List<CsvExporter.ExportInfo>>(emptyList())
+    private val smartMuteEnabled = mutableStateOf(true)
+    // null until first loaded; the list waits for both so it never starts out partial.
+    private val exports = mutableStateOf<List<CsvExporter.ExportInfo>?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        smartMuteEnabled.value = SmartMuteSettings.isEnabled(this)
         val dao = AppDatabase.get(this).notificationLogDao()
-        val recentLogs = dao.recent(RECENT_LIMIT)
+        val recentLogs = dao.recent(LOG_LIST_LIMIT)
         val logCount = dao.count()
         setContent {
             SmartMuteTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    val logs by recentLogs.collectAsState(initial = emptyList())
+                    val logs by recentLogs.collectAsState(initial = null)
                     val count by logCount.collectAsState(initial = 0)
                     Column(
                         modifier = Modifier.padding(innerPadding).padding(16.dp),
@@ -66,26 +66,26 @@ class MainActivity : ComponentActivity() {
                             enabled = listenerEnabled.value,
                             onOpenSettings = { ListenerAccess.openSettings(this@MainActivity) },
                         )
+                        SmartMuteToggle(
+                            enabled = smartMuteEnabled.value,
+                            onEnabledChange = {
+                                smartMuteEnabled.value = it
+                                SmartMuteSettings.setEnabled(this@MainActivity, it)
+                            },
+                        )
                         Text("Logged notifications: $count", style = MaterialTheme.typography.titleMedium)
                         DevExport(status = exportStatus.value, onExport = ::exportCsv)
+                        val loadedLogs = logs ?: return@Column
+                        val loadedExports = exports.value ?: return@Column
                         val items = mergeWithExports(
-                            logs = logs,
-                            exports = exports.value,
-                            isComplete = logs.size < RECENT_LIMIT,
+                            logs = loadedLogs,
+                            exports = loadedExports,
+                            isComplete = loadedLogs.size < LOG_LIST_LIMIT,
                         )
-                        val listState = rememberLazyListState()
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.verticalScrollbar(
-                                state = listState,
-                                color = MaterialTheme.colorScheme.outline,
-                            ),
-                            contentPadding = PaddingValues(end = 10.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
+                        LogList(topKey = items.firstOrNull()?.key) {
                             items(items, key = { it.key }) { item ->
                                 when (item) {
-                                    is LogListItem.Log -> LogRow(item.log)
+                                    is LogListItem.Log -> LogRow(item.log, showRemoval = true)
                                     is LogListItem.ExportMarker -> ExportMarkerRow(item.export.fileName)
                                 }
                             }
@@ -124,10 +124,6 @@ class MainActivity : ComponentActivity() {
             refreshExports()
         }
     }
-
-    private companion object {
-        const val RECENT_LIMIT = 100
-    }
 }
 
 @Composable
@@ -152,25 +148,5 @@ private fun ExportMarkerRow(fileName: String) {
             color = MaterialTheme.colorScheme.tertiary,
         )
         HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.tertiary)
-    }
-}
-
-@Composable
-private fun LogRow(log: NotificationLog) {
-    val time = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM)
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(log.appPackage, style = MaterialTheme.typography.labelSmall)
-            Text(log.senderId ?: "(no title)", style = MaterialTheme.typography.titleSmall)
-            Text(log.messageText ?: "(no text)", maxLines = 3)
-            val removed = log.removedAt?.let { removedAt ->
-                val opened = log.timeToOpenSec?.let { " · opened after ${it}s" } ?: ""
-                " · removed ${time.format(Date(removedAt))} (reason ${log.removalReason})$opened"
-            } ?: ""
-            Text(
-                time.format(Date(log.timestamp)) + removed,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
     }
 }
