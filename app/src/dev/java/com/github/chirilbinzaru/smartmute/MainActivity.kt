@@ -1,10 +1,6 @@
 package com.github.chirilbinzaru.smartmute
 
-import android.content.ComponentName
-import android.content.Intent
-import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
@@ -32,11 +27,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.lifecycleScope
 import com.github.chirilbinzaru.smartmute.data.AppDatabase
 import com.github.chirilbinzaru.smartmute.data.NotificationLog
 import com.github.chirilbinzaru.smartmute.export.CsvExporter
+import com.github.chirilbinzaru.smartmute.ui.ListenerAccess
+import com.github.chirilbinzaru.smartmute.ui.ListenerStatus
 import com.github.chirilbinzaru.smartmute.ui.theme.SmartMuteTheme
 import com.github.chirilbinzaru.smartmute.ui.verticalScrollbar
 import java.text.DateFormat
@@ -45,6 +41,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** [DEV] Log viewer with CSV export. The user flavor has its own minimal MainActivity. */
 class MainActivity : ComponentActivity() {
     private val listenerEnabled = mutableStateOf(false)
     private val exportStatus = mutableStateOf<String?>(null)
@@ -67,12 +64,10 @@ class MainActivity : ComponentActivity() {
                     ) {
                         ListenerStatus(
                             enabled = listenerEnabled.value,
-                            onOpenSettings = ::openListenerSettings,
+                            onOpenSettings = { ListenerAccess.openSettings(this@MainActivity) },
                         )
                         Text("Logged notifications: $count", style = MaterialTheme.typography.titleMedium)
-                        if (BuildConfig.DEBUG) {
-                            DevExport(status = exportStatus.value, onExport = ::exportCsv)
-                        }
+                        DevExport(status = exportStatus.value, onExport = ::exportCsv)
                         val items = mergeWithExports(
                             logs = logs,
                             exports = exports.value,
@@ -104,14 +99,12 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // The user may have just come back from the settings screen.
-        listenerEnabled.value = NotificationManagerCompat.getEnabledListenerPackages(this)
-            .contains(packageName)
+        listenerEnabled.value = ListenerAccess.isEnabled(this)
         refreshExports()
     }
 
     // Export files may have been deleted (e.g. via adb) while we were in the background.
     private fun refreshExports() {
-        if (!BuildConfig.DEBUG) return
         lifecycleScope.launch {
             exports.value = withContext(Dispatchers.IO) {
                 runCatching { CsvExporter.listExports(applicationContext) }.getOrDefault(emptyList())
@@ -119,21 +112,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun openListenerSettings() {
-        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS).putExtra(
-                Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
-                ComponentName(this, NotificationLoggerService::class.java).flattenToString(),
-            )
-        } else {
-            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-        }
-        runCatching { startActivity(intent) }
-            .onFailure { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
-    }
-
     private fun exportCsv() {
-        if (!BuildConfig.DEBUG) return
         exportStatus.value = "Exporting…"
         lifecycleScope.launch {
             exportStatus.value = runCatching {
@@ -152,24 +131,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun ListenerStatus(enabled: Boolean, onOpenSettings: () -> Unit) {
-    if (enabled) {
-        Text("Notification access: enabled", color = MaterialTheme.colorScheme.primary)
-    } else {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                "SmartMute needs notification access to read incoming notifications. " +
-                    "Everything stays on this device.",
-            )
-            Button(onClick = onOpenSettings) { Text("Grant notification access") }
-        }
-    }
-}
-
-@Composable
 private fun DevExport(status: String?, onExport: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        OutlinedButton(onClick = onExport) { Text("[dev] Export CSV") }
+        OutlinedButton(onClick = onExport) { Text("Export CSV") }
         status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     }
 }
