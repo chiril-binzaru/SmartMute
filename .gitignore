@@ -16,3 +16,11 @@ local.properties
 
 # Notification log exports contain private message text
 *.csv
+
+# ML: local datasets (real messages) and the virtual environment
+/ml/data/
+/ml/.venv/
+__pycache__/
+
+# LibreOffice lock files
+.~lock.*#
