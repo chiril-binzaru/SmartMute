@@ -51,4 +51,9 @@ data class NotificationLog(
     @ColumnInfo(name = "removed_at") val removedAt: Long? = null,
     // NotificationListenerService.REASON_* (API 26+); null if unknown.
     @ColumnInfo(name = "removal_reason") val removalReason: Int? = null,
+
+    // MessagingStyle.Message timestamp (epoch ms): identifies the individual message inside
+    // a notification that holds several. Null for non-MessagingStyle notifications. Added in
+    // schema v2; kept last so migrated and fresh databases have the same column order.
+    @ColumnInfo(name = "raw_message_time") val rawMessageTime: Long? = null,
 )
