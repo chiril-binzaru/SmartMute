@@ -1,0 +1,170 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "f02057830da6659f5013f610e747b48e",
+    "entities": [
+      {
+        "tableName": "notification_log",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`message_id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `notification_key` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `sender_id` TEXT, `app_package` TEXT NOT NULL, `content_type` TEXT, `message_text` TEXT, `chat_type` TEXT, `time_since_last_msg_from_sender_sec` INTEGER, `conversation_state` TEXT, `user_reaction` TEXT, `time_to_open_sec` INTEGER, `decision` TEXT, `feedback` TEXT, `corrected_decision` TEXT, `raw_conversation_title` TEXT, `raw_sub_text` TEXT, `raw_is_group_conversation` INTEGER, `raw_category` TEXT, `raw_template` TEXT, `raw_has_picture` INTEGER NOT NULL, `removed_at` INTEGER, `removal_reason` INTEGER, `raw_message_time` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "messageId",
+            "columnName": "message_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notificationKey",
+            "columnName": "notification_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderId",
+            "columnName": "sender_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "appPackage",
+            "columnName": "app_package",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentType",
+            "columnName": "content_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "messageText",
+            "columnName": "message_text",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "chatType",
+            "columnName": "chat_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "timeSinceLastMsgFromSenderSec",
+            "columnName": "time_since_last_msg_from_sender_sec",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "conversationState",
+            "columnName": "conversation_state",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "userReaction",
+            "columnName": "user_reaction",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "timeToOpenSec",
+            "columnName": "time_to_open_sec",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "decision",
+            "columnName": "decision",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "feedback",
+            "columnName": "feedback",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "correctedDecision",
+            "columnName": "corrected_decision",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rawConversationTitle",
+            "columnName": "raw_conversation_title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rawSubText",
+            "columnName": "raw_sub_text",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rawIsGroupConversation",
+            "columnName": "raw_is_group_conversation",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rawCategory",
+            "columnName": "raw_category",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rawTemplate",
+            "columnName": "raw_template",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rawHasPicture",
+            "columnName": "raw_has_picture",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "removedAt",
+            "columnName": "removed_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "removalReason",
+            "columnName": "removal_reason",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rawMessageTime",
+            "columnName": "raw_message_time",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "message_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_notification_log_notification_key",
+            "unique": false,
+            "columnNames": [
+              "notification_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_notification_log_notification_key` ON `${TABLE_NAME}` (`notification_key`)"
+          },
+          {
+            "name": "index_notification_log_sender_id",
+            "unique": false,
+            "columnNames": [
+              "sender_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_notification_log_sender_id` ON `${TABLE_NAME}` (`sender_id`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f02057830da6659f5013f610e747b48e')"
+    ]
+  }
+}
