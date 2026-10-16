@@ -3,6 +3,7 @@
 Column reference: docs/DATA_SCHEMA.md. Keep this file in sync with it.
 """
 
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -33,9 +34,53 @@ IGNORED_AFTER_SEC = 24 * 3600
 # Packages that aren't conversations; excluded from messenger stats.
 NON_MESSENGER_PACKAGES = {"com.android.shell"}
 
+# Call notifications pass through untouched (ml/README.md, "Pass-through rule"): never
+# decided on, never reposted, never in the training set. The app still logs them.
+CALL_TEMPLATE_SUFFIX = "CallStyle"            # raw_template android.app.Notification$CallStyle
+CALL_CATEGORIES = {"call", "missed_call"}     # Notification.CATEGORY_CALL / CATEGORY_MISSED_CALL
+# Fallback only, for dialers that set neither signal. Telegram / Viber / WhatsApp calls
+# arrive under the messenger's own package and are caught by the signals above.
+DIALER_PACKAGES: set[str] = {
+    "com.google.android.dialer"
+}
 
-def load_export(path: str | Path) -> pd.DataFrame:
-    """Reads a notification_log_*.csv exported by the dev app."""
+
+def _text(value) -> str:
+    """'' for missing values (None, NaN, <NA>), else the value as a string."""
+    return "" if value is None or pd.isna(value) else str(value)
+
+
+def is_call_notification(raw_template, raw_category, app_package) -> bool:
+    """True for incoming, ongoing and missed call notifications.
+
+    Primary signals: raw_template ends in CallStyle, or raw_category is call / missed_call.
+    Secondary: app_package is in DIALER_PACKAGES.
+    """
+    return (_text(raw_template).endswith(CALL_TEMPLATE_SUFFIX)
+            or _text(raw_category) in CALL_CATEGORIES
+            or _text(app_package) in DIALER_PACKAGES)
+
+
+def call_rows(df: pd.DataFrame) -> pd.Series:
+    """Boolean mask of call notifications; a missing column counts as empty."""
+    def column(name):
+        return df[name] if name in df.columns else pd.Series("", index=df.index)
+    template, category, package = column("raw_template"), column("raw_category"), column("app_package")
+    return pd.Series([is_call_notification(t, c, p) for t, c, p in zip(template, category, package)],
+                     index=df.index, dtype=bool)
+
+
+def drop_calls(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """(df without call notifications, number of rows dropped)."""
+    calls = call_rows(df)
+    return df[~calls], int(calls.sum())
+
+
+def load_export(path: str | Path, include_calls: bool = False) -> pd.DataFrame:
+    """Reads a notification_log_*.csv exported by the dev app.
+
+    Call notifications are dropped (pass-through rule) unless include_calls.
+    """
     df = pd.read_csv(
         path,
         encoding="utf-8",
@@ -45,18 +90,29 @@ def load_export(path: str | Path) -> pd.DataFrame:
     ).convert_dtypes()
     for col in ("timestamp", "removed_at"):
         df[col] = pd.to_datetime(df[col], unit="ms", utc=True).dt.tz_convert(LOCAL_TZ)
-    return df
+    return df if include_calls else drop_calls(df)[0]
 
 
 def load_manual(path: str | Path) -> pd.DataFrame:
-    """Reads the hand-labelled 200-row dataset; `decision` is the ground-truth label."""
+    """Reads the hand-labelled 200-row dataset; `decision` is the ground-truth label.
+
+    Call notifications are dropped (pass-through rule), by whichever of raw_template,
+    raw_category and app_package the file has.
+    """
     df = pd.read_excel(path, dtype={"message_id": "string", "message_text": "string"})
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert(LOCAL_TZ)
-    return df
+    return drop_calls(df)[0]
 
 
 def latest_export(data_dir: str | Path) -> Path:
-    exports = sorted(Path(data_dir).glob("notification_log_*.csv"))
+    """Newest export in data_dir or its subfolders (`adb pull .../exports/` makes one).
+
+    Only names exactly as the app writes them count, so review files made by prelabel.py
+    (`notification_log_..._review.csv`) are never mistaken for exports.
+    """
+    exports = sorted((p for p in Path(data_dir).rglob("notification_log_*.csv")
+                      if re.fullmatch(r"notification_log_\d{8}_\d{6}\.csv", p.name)),
+                     key=lambda p: p.name)
     if not exports:
         raise FileNotFoundError(f"No notification_log_*.csv in {data_dir}")
     return exports[-1]
@@ -122,16 +178,25 @@ def derive_user_reaction(df: pd.DataFrame, now: pd.Timestamp) -> pd.Series:
     return out
 
 
+def baseline_decision(content_type, conversation_state, chat_type) -> tuple[str, str]:
+    """The rule-based engine from CLAUDE.md ("Experiment status"), first match wins.
+
+    Returns (decision, rule) where rule names the rule that fired, for review.
+    """
+    if content_type in ("reaction", "sticker"):
+        return "silent", "reaction_or_sticker"
+    if conversation_state == "last_msg_was_question":
+        return "sound", "question"
+    if chat_type in ("group", "channel", "broadcast"):
+        return "silent", "group_channel_broadcast"
+    if content_type == "photo":
+        return "silent", "photo"
+    return "sound", "default"
+
+
 def rule_baseline(df: pd.DataFrame) -> pd.Series:
-    """The rule-based engine from CLAUDE.md ("Experiment status"), first match wins."""
-    def decide(row) -> str:
-        if row["content_type"] in ("reaction", "sticker"):
-            return "silent"
-        if row["conversation_state"] == "last_msg_was_question":
-            return "sound"
-        if row["chat_type"] in ("group", "channel", "broadcast"):
-            return "silent"
-        if row["content_type"] == "photo":
-            return "silent"
-        return "sound"
-    return df.apply(decide, axis=1)
+    """baseline_decision for every row: the decision only."""
+    return df.apply(
+        lambda row: baseline_decision(row["content_type"], row["conversation_state"], row["chat_type"])[0],
+        axis=1,
+    )

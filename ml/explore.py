@@ -21,12 +21,13 @@ def section(title: str) -> None:
 
 
 def explore_export(path: Path) -> None:
-    df = sd.load_export(path)
+    df, calls = sd.drop_calls(sd.load_export(path, include_calls=True))
     df = df[~df["app_package"].isin(sd.NON_MESSENGER_PACKAGES)]
     now = pd.Timestamp.now(tz=sd.LOCAL_TZ)
 
     section(f"Export {path.name}")
     print(f"{len(df)} rows, {df['timestamp'].min():%Y-%m-%d %H:%M} → {df['timestamp'].max():%Y-%m-%d %H:%M}")
+    print(f"call notifications excluded: {calls}")
 
     section("Rows per app")
     print(df["app_package"].value_counts().to_string())

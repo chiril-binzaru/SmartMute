@@ -24,3 +24,6 @@ __pycache__/
 
 # LibreOffice lock files
 .~lock.*#
+
+# Synthetic test data is fake and meant to be committed
+!/ml/testdata/*.csv
