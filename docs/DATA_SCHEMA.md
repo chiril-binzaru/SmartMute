@@ -73,8 +73,8 @@ Types are SQLite storage types. Booleans are stored as `INTEGER` 0/1. Times endi
 | `raw_conversation_title` | TEXT | yes | post | `MessagingStyle.conversationTitle`. Usually set for group chats. |
 | `raw_sub_text` | TEXT | yes | post | `EXTRA_SUB_TEXT`. Gmail typically shows the account address here. |
 | `raw_is_group_conversation` | INTEGER | yes | post | `MessagingStyle.isGroupConversation`. Null when the notification has no MessagingStyle. |
-| `raw_category` | TEXT | yes | post | `Notification.category`, e.g. `msg`, `email`, `social`. |
-| `raw_template` | TEXT | yes | post | `EXTRA_TEMPLATE`, e.g. `android.app.Notification$MessagingStyle`. |
+| `raw_category` | TEXT | yes | post | `Notification.category`, e.g. `msg`, `email`, `social`. `call` / `missed_call` mark a call notification (pass-through rule: logged, but never decided on, reposted or trained on; see `ml/README.md`). |
+| `raw_template` | TEXT | yes | post | `EXTRA_TEMPLATE`, e.g. `android.app.Notification$MessagingStyle`. `android.app.Notification$CallStyle` marks a call notification, also when a messenger sends it. |
 | `raw_has_picture` | INTEGER | no | post | 1 if `EXTRA_PICTURE` is set or this row's MessagingStyle message has an `image/*` MIME type. |
 | `raw_message_time` | INTEGER | yes | post | `MessagingStyle.Message` timestamp, epoch ms: identifies the message within the notification. Null for non-MessagingStyle notifications and for all rows logged by schema v1. Last column of the table (added by migration). |
 

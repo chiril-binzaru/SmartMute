@@ -171,7 +171,14 @@ fixed `m` doesn't capture.
    Room, no decisions yet (verify interception works for Telegram/
    Viber/WhatsApp/SMS/Gmail)
 2. Two notification channels + rule-based decision engine (the same one
-   that scored 68.5%) — repost notifications through the right channel
+   that scored 68.5%) — repost notifications through the right channel.
+   **Call notifications are skipped:** the repost code must detect them with
+   the same rule as `is_call_notification()` in `ml/smartmute_data.py`
+   (template ends in `CallStyle`, or category `call` / `missed_call`;
+   `DIALER_PACKAGES` only as a fallback, since Telegram/Viber/WhatsApp
+   calls come under their own package) and must never call
+   `cancelNotification()` on them or make a decision for them. They are
+   still logged as before (see "Pass-through rule" in `ml/README.md`)
 3. `onNotificationRemoved` — log user_reaction / time_to_open_sec with
    no user involvement
 4. [DEV BUILD ONLY] Feedback actions (👍/👎) on the notification →
