@@ -1,5 +1,10 @@
 # Smart Notification Muting — Android + on-device ML
 
+## Commit messages
+
+Do not add Claude or Anthropic co-author attribution to commit messages.
+Do not include `Co-Authored-By` trailers for AI assistants.
+
 ## Idea
 
 An Android app that intercepts messenger notifications and decides whether
